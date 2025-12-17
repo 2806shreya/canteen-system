@@ -29,7 +29,9 @@ app.use("/api/auth", authRoutes);
 app.get("/", (req, res) => {
   res.json({ message: "Canteen API running" });
 });
-
+app.get("/test-images", (req, res) => {
+  res.json({ ok: true });
+});
 // ----- connect DB and start server -----
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;

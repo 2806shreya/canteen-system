@@ -1,19 +1,26 @@
-import { useEffect, useState } from 'react';
-import axios from 'axios';
-import { API_BASE_URL } from '../api';
+// frontend/src/pages/AdminMenu.jsx
+
+import React, { useEffect, useState } from "react";
+import axios from "axios";
+import { API_BASE_URL } from "../api";
 
 export default function AdminMenu() {
   const [items, setItems] = useState([]);
-  const [form, setForm] = useState({ name: '', price: '', category: '' });
+  const [form, setForm] = useState({ name: "", price: "", category: "" });
   const [editingId, setEditingId] = useState(null);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
+  const [loadingList, setLoadingList] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const loadMenu = async () => {
     try {
+      setLoadingList(true);
       const res = await axios.get(`${API_BASE_URL}/api/menu`);
       setItems(res.data);
     } catch (err) {
-      console.error('Failed to load menu', err);
+      console.error("Failed to load menu", err);
+    } finally {
+      setLoadingList(false);
     }
   };
 
@@ -22,34 +29,37 @@ export default function AdminMenu() {
   }, []);
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage('');
+    setMessage("");
+    setSaving(true);
     try {
       if (editingId) {
         await axios.put(`${API_BASE_URL}/api/menu/${editingId}`, {
           name: form.name,
           price: Number(form.price),
-          category: form.category
+          category: form.category,
         });
-        setMessage('Item updated');
+        setMessage("Item updated");
       } else {
         await axios.post(`${API_BASE_URL}/api/menu`, {
           name: form.name,
           price: Number(form.price),
-          category: form.category
+          category: form.category,
         });
-        setMessage('Item created');
+        setMessage("Item created");
       }
-      setForm({ name: '', price: '', category: '' });
+      setForm({ name: "", price: "", category: "" });
       setEditingId(null);
       loadMenu();
     } catch (err) {
       console.error(err);
-      setMessage('Save failed (are you logged in as admin?)');
+      setMessage("Save failed (are you logged in as admin?)");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -58,108 +68,131 @@ export default function AdminMenu() {
     setForm({
       name: item.name,
       price: item.price,
-      category: item.category
+      category: item.category,
     });
   };
 
   const deleteItem = async (id) => {
-    if (!window.confirm('Delete this item?')) return;
-    setMessage('');
+    if (!window.confirm("Delete this item?")) return;
+    setMessage("");
     try {
       await axios.delete(`${API_BASE_URL}/api/menu/${id}`);
-      setMessage('Item deleted');
+      setMessage("Item deleted");
       loadMenu();
     } catch (err) {
       console.error(err);
-      setMessage('Delete failed');
+      setMessage("Delete failed");
     }
   };
 
   return (
-    <div className="row">
-      <div className="col-md-5 mb-4">
-        <div className="card shadow-sm">
-          <div className="card-body">
-            <h3 className="card-title mb-3">
-              {editingId ? 'Edit Menu Item' : 'Add Menu Item'}
-            </h3>
-            {message && <div className="alert alert-info">{message}</div>}
+    <div className="admin-page">
+      <div className="admin-layout">
+        {/* Left: form */}
+        <section className="admin-card admin-form-card">
+          <h1 className="admin-title">
+            {editingId ? "Edit Menu Item" : "Add Menu Item"}
+          </h1>
+          <p className="admin-subtitle">
+            Manage dishes, prices, and categories shown on the student menu.
+          </p>
 
-            <form onSubmit={handleSubmit}>
-              <div className="mb-3">
-                <label className="form-label">Name</label>
-                <input
-                  name="name"
-                  className="form-control"
-                  value={form.name}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Price</label>
-                <input
-                  name="price"
-                  type="number"
-                  className="form-control"
-                  value={form.price}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Category</label>
-                <input
-                  name="category"
-                  className="form-control"
-                  value={form.category}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-              <button type="submit" className="btn btn-primary w-100">
-                {editingId ? 'Update Item' : 'Add Item'}
-              </button>
-            </form>
+          {message && <div className="admin-message">{message}</div>}
+
+          <form className="admin-form" onSubmit={handleSubmit}>
+            <div className="admin-field">
+              <label className="admin-label">Name</label>
+              <input
+                name="name"
+                className="admin-input"
+                value={form.name}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="admin-field">
+              <label className="admin-label">Price (₹)</label>
+              <input
+                name="price"
+                type="number"
+                className="admin-input"
+                value={form.price}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="admin-field">
+              <label className="admin-label">Category</label>
+              <input
+                name="category"
+                className="admin-input"
+                value={form.category}
+                onChange={handleChange}
+                placeholder="South Indian, chineese, snacks, soups…"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="admin-button"
+              disabled={saving}
+            >
+              {saving
+                ? "Saving..."
+                : editingId
+                ? "Update Item"
+                : "Add Item"}
+            </button>
+          </form>
+        </section>
+
+        {/* Right: list */}
+        <section className="admin-card admin-list-card">
+          <div className="admin-list-header">
+            <h2 className="admin-title">Current Menu</h2>
+            {loadingList && (
+              <span className="admin-list-status">Loading…</span>
+            )}
           </div>
-        </div>
-      </div>
 
-      <div className="col-md-7">
-        <h3 className="mb-3">Current Menu</h3>
-        {items.length === 0 ? (
-          <p>No items.</p>
-        ) : (
-          <ul className="list-group">
-            {items.map((item) => (
-              <li
-                key={item._id}
-                className="list-group-item d-flex justify-content-between align-items-center"
-              >
-                <div>
-                  <div>{item.name}</div>
-                  <small className="text-muted">
-                    ₹{item.price} • {item.category}
-                  </small>
+          {items.length === 0 && !loadingList ? (
+            <p className="admin-empty">No items in the menu yet.</p>
+          ) : (
+            <div className="admin-list">
+              {items.map((item) => (
+                <div key={item._id} className="admin-list-item">
+                  <div className="admin-list-main">
+                    <div className="admin-list-name">{item.name}</div>
+                    <div className="admin-list-meta">
+                      <span>₹{item.price}</span>
+                      <span className="admin-list-dot">•</span>
+                      <span>{item.category}</span>
+                    </div>
+                  </div>
+                  <div className="admin-list-actions">
+                    <button
+                      type="button"
+                      className="admin-chip-button"
+                      onClick={() => startEdit(item)}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-chip-button admin-chip-danger"
+                      onClick={() => deleteItem(item._id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
                 </div>
-                <div>
-                  <button
-                    className="btn btn-sm btn-outline-primary me-2"
-                    onClick={() => startEdit(item)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    className="btn btn-sm btn-outline-danger"
-                    onClick={() => deleteItem(item._id)}
-                  >
-                    Delete
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );

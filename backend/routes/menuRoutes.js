@@ -1,59 +1,75 @@
-const express = require('express');
-const MenuItem = require('../models/MenuItem');
-const auth = require('../middleware/auth');
-const admin = require('../middleware/admin');
+// backend/routes/menuRoutes.js
 
+const express = require("express");
 const router = express.Router();
+const MenuItem = require("../models/MenuItem");
 
-// public: get all menu items
-router.get('/', async (req, res) => {
+// GET /api/menu  -> sorted by category then name
+router.get("/", async (req, res) => {
   try {
-    const items = await MenuItem.find();
+    const items = await MenuItem.find().sort({ category: 1, name: 1 }); // [web:163][web:167]
     res.json(items);
-  } catch (err) {
-    console.error('Get menu error', err);
-    res.status(500).json({ message: 'Server error' });
+  } catch (error) {
+    console.error("Error fetching menu:", error);
+    res.status(500).json({ message: "Failed to fetch menu" });
   }
 });
 
-// admin: create menu item
-router.post('/', auth, admin, async (req, res) => {
+// POST /api/menu  -> admin adds new dish
+router.post("/", async (req, res) => {
   try {
-    const { name, price, category } = req.body;
-    const item = await MenuItem.create({ name, price, category });
-    res.status(201).json(item);
-  } catch (err) {
-    console.error('Create menu item error', err);
-    res.status(500).json({ message: 'Server error' });
+    const { name, price, category, isAvailable } = req.body;
+
+    const item = new MenuItem({
+      name,
+      price,
+      category,
+      isAvailable: isAvailable !== undefined ? isAvailable : true,
+    });
+
+    const saved = await item.save();
+    res.status(201).json(saved);
+  } catch (error) {
+    console.error("Error creating menu item:", error);
+    res.status(500).json({ message: "Failed to create menu item" });
   }
 });
 
-// admin: update menu item
-router.put('/:id', auth, admin, async (req, res) => {
+// PUT /api/menu/:id  -> admin edit dish
+router.put("/:id", async (req, res) => {
   try {
-    const { name, price, category } = req.body;
-    const item = await MenuItem.findByIdAndUpdate(
+    const { name, price, category, isAvailable } = req.body;
+
+    const updated = await MenuItem.findByIdAndUpdate(
       req.params.id,
-      { name, price, category },
+      { name, price, category, isAvailable },
       { new: true }
     );
-    if (!item) return res.status(404).json({ message: 'Item not found' });
-    res.json(item);
-  } catch (err) {
-    console.error('Update menu item error', err);
-    res.status(500).json({ message: 'Server error' });
+
+    if (!updated) {
+      return res.status(404).json({ message: "Menu item not found" });
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error("Error updating menu item:", error);
+    res.status(500).json({ message: "Failed to update menu item" });
   }
 });
 
-// admin: delete menu item
-router.delete('/:id', auth, admin, async (req, res) => {
+// DELETE /api/menu/:id  -> admin delete dish
+router.delete("/:id", async (req, res) => {
   try {
-    const item = await MenuItem.findByIdAndDelete(req.params.id);
-    if (!item) return res.status(404).json({ message: 'Item not found' });
-    res.json({ message: 'Deleted' });
-  } catch (err) {
-    console.error('Delete menu item error', err);
-    res.status(500).json({ message: 'Server error' });
+    const deleted = await MenuItem.findByIdAndDelete(req.params.id);
+
+    if (!deleted) {
+      return res.status(404).json({ message: "Menu item not found" });
+    }
+
+    res.json({ message: "Menu item deleted" });
+  } catch (error) {
+    console.error("Error deleting menu item:", error);
+    res.status(500).json({ message: "Failed to delete menu item" });
   }
 });
 
